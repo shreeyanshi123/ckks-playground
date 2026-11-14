@@ -47,7 +47,12 @@ class CKKSWasmService {
     }
 
     this.seal = await SEAL({
-      locateFile: (file) => `/assets/${file}`
+      locateFile: (file) => {
+        if (file.endsWith('.wasm')) {
+          return '/wasm/ckks.wasm';
+        }
+        return `/wasm/${file}`;
+      }
     });
 
     const schemeType = this.seal.SchemeType.ckks;
