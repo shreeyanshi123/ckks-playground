@@ -1,7 +1,7 @@
 services:
   server:
     build:
-      context: ./server
+      context: ./backend
       dockerfile: Dockerfile
     container_name: ckks-server
     ports:
@@ -19,7 +19,7 @@ services:
 
   client:
     build:
-      context: ./client
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: ckks-client
     ports:
