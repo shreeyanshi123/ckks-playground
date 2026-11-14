@@ -1,0 +1,17 @@
+{
+  "name": "ckks-server",
+  "version": "1.0.0",
+  "description": "Microsoft SEAL CKKS Homomorphic Evaluator Server",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node --experimental-wasm-exnref src/server.js",
+    "dev": "node --experimental-wasm-exnref src/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "node-seal": "^7.0.0"
+  }
+}
+

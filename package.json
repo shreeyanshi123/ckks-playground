@@ -1,0 +1,19 @@
+{
+  "name": "ckks-homomorphic-encryption-demo",
+  "version": "1.0.0",
+  "description": "Microsoft SEAL CKKS Homomorphic Encryption Interactive Playground with In-Browser WASM and Outsourced Client-Server Architecture",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && (cd server && npm install) && (cd client && npm install)",
+    "server": "cd server && npm start",
+    "client": "cd client && npm run dev",
+    "dev": "npm run server & npm run client",
+    "build:client": "cd client && npm run build",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up",
+    "docker:down": "docker compose down"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
