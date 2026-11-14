@@ -205,3 +205,4 @@ EMSCRIPTEN_BINDINGS(ckks_module) {
         .function("decryptResult", &CKKSModule::decryptResult)
         .function("resetDemo", &CKKSModule::resetDemo);
 }
+

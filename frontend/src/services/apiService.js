@@ -38,3 +38,4 @@ export async function computeOutsource({ operation, ciphertextA, ciphertextB, re
 
   return await response.json();
 }
+

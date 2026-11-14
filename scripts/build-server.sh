@@ -16,3 +16,4 @@ echo "Testing server execution..."
 node --experimental-wasm-exnref -e "import('./src/services/ckksEvaluator.js').then(m => m.initServerSeal().then(() => console.log('Backend SEAL initialized successfully.')))"
 
 echo "Backend build verified successfully."
+

@@ -31,3 +31,4 @@ cp ckks.js "$OUTPUT_DIR/"
 cp ckks.wasm "$OUTPUT_DIR/"
 
 echo "WASM compilation complete: ckks.js and ckks.wasm generated."
+

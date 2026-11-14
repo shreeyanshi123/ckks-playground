@@ -23,3 +23,4 @@ export default function ExecutionLogs({ logs = [], title = 'Execution Logs' }) {
     </div>
   );
 }
+

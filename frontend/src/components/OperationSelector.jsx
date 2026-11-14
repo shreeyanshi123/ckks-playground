@@ -36,3 +36,4 @@ export default function OperationSelector({ operation, setOperation, disabled })
     </div>
   );
 }
+

@@ -46,7 +46,9 @@ class CKKSWasmService {
       return { success: true, params: this.params };
     }
 
-    this.seal = await SEAL();
+    this.seal = await SEAL({
+      locateFile: (file) => `/assets/${file}`
+    });
 
     const schemeType = this.seal.SchemeType.ckks;
     const securityLevel = this.seal.SecLevelType.tc128;
@@ -243,3 +245,4 @@ class CKKSWasmService {
 // Singleton instance
 export const wasmService = new CKKSWasmService();
 export default wasmService;
+

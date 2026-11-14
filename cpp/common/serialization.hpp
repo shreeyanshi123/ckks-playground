@@ -29,3 +29,4 @@ void deserialize_from_string(const seal::SEALContext& context, const std::string
 }
 
 } // namespace ckks_playground
+

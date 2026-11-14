@@ -29,3 +29,4 @@ target_link_options(ckks PRIVATE
     "-sNO_DISABLE_EXCEPTION_CATCHING"
     "-O3"
 )
+
