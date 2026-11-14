@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import VectorInput from '../components/VectorInput';
 import OperationSelector from '../components/OperationSelector';
-import ExecutionLogs from '../components/ExecutionLogs';
 import ResultPanel from '../components/ResultPanel';
 import { wasmService } from '../services/wasmService';
 import { checkServerHealth, computeOutsource } from '../services/apiService';
@@ -21,10 +20,12 @@ export default function ClientServerDemo() {
 
   const [serverEncryptedResult, setServerEncryptedResult] = useState(null);
   const [serverExecutionTime, setServerExecutionTime] = useState(null);
+  const [serverLogs, setServerLogs] = useState([]);
   const [payloadSizeStr, setPayloadSizeStr] = useState(null);
   const [activeVectorLength, setActiveVectorLength] = useState(0);
+  const [ciphertextSnippet, setCiphertextSnippet] = useState(null);
 
-  const [logs, setLogs] = useState([]);
+  const [clientLogs, setClientLogs] = useState([]);
   const [decryptedResult, setDecryptedResult] = useState(null);
   const [expectedResult, setExpectedResult] = useState(null);
   const [accuracy, setAccuracy] = useState(null);
@@ -39,8 +40,8 @@ export default function ClientServerDemo() {
     setServerStatus(res);
   };
 
-  const addLog = (msg) => {
-    setLogs((prev) => [...prev, msg]);
+  const addClientLog = (msg) => {
+    setClientLogs((prev) => [...prev, msg]);
   };
 
   const handleApplyPreset = (vA, vB) => {
@@ -54,9 +55,11 @@ export default function ClientServerDemo() {
     setIsServerResultReady(false);
     setServerEncryptedResult(null);
     setServerExecutionTime(null);
+    setServerLogs([]);
     setPayloadSizeStr(null);
     setActiveVectorLength(0);
-    setLogs([]);
+    setCiphertextSnippet(null);
+    setClientLogs([]);
     setDecryptedResult(null);
     setExpectedResult(null);
     setAccuracy(null);
@@ -87,18 +90,14 @@ export default function ClientServerDemo() {
 
   /**
    * BUTTON 1: Encrypt & Outsource to Server
-   * 1. Generates keys on client (Secret key stays in client WASM).
-   * 2. Encrypts vectors into ciphertexts.
-   * 3. Serializes ciphertexts.
-   * 4. Sends HTTP POST /api/compute to Node.js server.
-   * 5. Server evaluates without secret key and returns encrypted result.
    */
   const handleOutsource = async () => {
     const vectors = validateVectors();
     if (!vectors) return;
 
     setIsOutsourcing(true);
-    setLogs([]);
+    setClientLogs([]);
+    setServerLogs([]);
     setDecryptedResult(null);
     setExpectedResult(null);
     setIsServerResultReady(false);
@@ -107,7 +106,7 @@ export default function ClientServerDemo() {
       // Step 1: Client key generation
       await wasmService.initializeCKKS();
       wasmService.generateClientKeys();
-      addLog('[1] Client keys generated (Secret Key strictly retained in local WASM)');
+      addClientLog('[1] Client keys generated (Secret Key strictly retained in local WASM)');
 
       // Step 2 & 3: Encryption and Serialization
       const encryptedPayload = wasmService.encryptAndSerialize(
@@ -115,7 +114,7 @@ export default function ClientServerDemo() {
         vectors.vB,
         operation
       );
-      addLog('[2] Vectors encrypted using Client Public Key');
+      addClientLog('[2] Vectors encrypted using Client Public Key');
 
       const totalBytes =
         encryptedPayload.ciphertextA.length +
@@ -124,11 +123,12 @@ export default function ClientServerDemo() {
       const formattedSize = formatBytes(totalBytes);
       setPayloadSizeStr(formattedSize);
       setActiveVectorLength(encryptedPayload.vectorLength);
+      setCiphertextSnippet(encryptedPayload.ciphertextA.substring(0, 120) + '...');
 
-      addLog(`[3] Ciphertexts serialized (${formattedSize} Base64 payload)`);
+      addClientLog(`[3] Ciphertexts serialized (${formattedSize} Base64 payload)`);
 
       // Step 4: Network transmission to Node.js server
-      addLog('[4] Sending request to server via POST /api/compute');
+      addClientLog('[4] Sending request to server via POST /api/compute');
       const serverResponse = await computeOutsource({
         operation,
         ciphertextA: encryptedPayload.ciphertextA,
@@ -137,17 +137,21 @@ export default function ClientServerDemo() {
       });
 
       // Step 5 & 6: Server computation logs
-      addLog('[5] Server received encrypted payload (Zero plaintext visibility)');
-      addLog(`[6] Homomorphic evaluation completed on server (${serverResponse.executionTimeMs} ms)`);
+      setServerLogs(serverResponse.serverLogs || [
+        'Received encrypted payload from client',
+        'Deserialized Ciphertext A and B without secret key',
+        `Executed homomorphic ${operation} on SEAL Evaluator`,
+        'Serialized encrypted result back to client'
+      ]);
 
       // Step 7: Encrypted result received by client
       setServerEncryptedResult(serverResponse.encryptedResult);
       setServerExecutionTime(serverResponse.executionTimeMs);
       setIsServerResultReady(true);
-      addLog('[7] Encrypted result received by client');
+      addClientLog('[7] Encrypted result received by client');
     } catch (err) {
       console.error(err);
-      addLog(`[Error] ${err.message}`);
+      addClientLog(`[Error] ${err.message}`);
     } finally {
       setIsOutsourcing(false);
     }
@@ -155,7 +159,6 @@ export default function ClientServerDemo() {
 
   /**
    * BUTTON 2: Decrypt & Reveal Result
-   * Client decrypts the server's encrypted response using its local Secret Key.
    */
   const handleDecryptServerResult = async () => {
     const vectors = validateVectors();
@@ -168,7 +171,7 @@ export default function ClientServerDemo() {
         serverEncryptedResult,
         activeVectorLength
       );
-      addLog('[8] Client decrypted result using private Secret Key');
+      addClientLog('[8] Client decrypted result using private Secret Key');
 
       const exact = computeExact(vectors.vA, vectors.vB, operation);
       const acc = computeAccuracy(exact, decrypted);
@@ -178,14 +181,14 @@ export default function ClientServerDemo() {
       setAccuracy(acc);
     } catch (err) {
       console.error(err);
-      addLog(`[Error] Decryption failed: ${err.message}`);
+      addClientLog(`[Error] Decryption failed: ${err.message}`);
     } finally {
       setIsDecrypting(false);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       {/* Demo Header */}
       <div>
         <div className="flex items-center space-x-2 mb-1">
@@ -277,8 +280,142 @@ export default function ClientServerDemo() {
         )}
       </div>
 
-      {/* Sequential Execution Logs */}
-      <ExecutionLogs logs={logs} title="Client–Server Cryptographic Interaction Logs" />
+      {/* SIDE-BY-SIDE CLIENT & SERVER ARCHITECTURE VIEW */}
+      {(clientLogs.length > 0 || isServerResultReady) && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-gray-800 tracking-tight">
+              Interactive Side-by-Side Execution View
+            </h3>
+            <span className="text-xs font-mono text-gray-500">
+              HTTP POST /api/compute
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* LEFT PANEL: CLIENT (BROWSER WASM) */}
+            <div className="p-4 bg-white border border-blue-200 rounded-lg space-y-3 shadow-xs">
+              <div className="flex items-center justify-between pb-2 border-b border-blue-100">
+                <div className="flex items-center space-x-2">
+                  <span className="text-base">💻</span>
+                  <span className="text-xs font-bold text-blue-900 uppercase tracking-wide">
+                    Client (Browser WASM)
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded">
+                  Private Domain
+                </span>
+              </div>
+
+              {/* Secret Key Badge */}
+              <div className="p-2.5 bg-blue-50/70 border border-blue-100 rounded text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-blue-900">Secret Key Status:</span>
+                  <span className="font-mono text-[11px] font-bold text-green-700">🔒 RETAINED IN WASM</span>
+                </div>
+                <p className="text-[11px] text-blue-800">
+                  Secret Key strictly never leaves browser memory and is never transmitted over the network.
+                </p>
+              </div>
+
+              {/* Client Plaintext Visibility */}
+              <div className="text-xs space-y-1">
+                <span className="font-semibold text-gray-700">Plaintext Inputs (Known only to Client):</span>
+                <div className="font-mono text-xs bg-gray-50 p-2 rounded border border-gray-200 text-gray-800">
+                  Vector A: [{vectorAStr}]<br />
+                  Vector B: [{vectorBStr}]
+                </div>
+              </div>
+
+              {/* Client Outgoing Payload */}
+              {payloadSizeStr && (
+                <div className="text-xs space-y-1">
+                  <span className="font-semibold text-gray-700">Outgoing Encrypted Payload:</span>
+                  <div className="text-[11px] font-mono text-gray-600 bg-gray-50 p-2 rounded border border-gray-200 flex justify-between">
+                    <span>Ciphertexts Size:</span>
+                    <span className="font-bold text-gray-900">{payloadSizeStr}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Client Event Logs */}
+              <div className="text-xs space-y-1 pt-1">
+                <span className="font-semibold text-gray-700">Client Event Stream:</span>
+                <div className="font-mono text-[11px] bg-gray-50 p-2.5 rounded border border-gray-200 space-y-1 max-h-40 overflow-y-auto">
+                  {clientLogs.map((log, idx) => (
+                    <div key={idx} className="text-gray-700">› {log}</div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT PANEL: SERVER (UNTRUSTED NODE.JS WORKER) */}
+            <div className="p-4 bg-white border border-amber-200 rounded-lg space-y-3 shadow-xs">
+              <div className="flex items-center justify-between pb-2 border-b border-amber-100">
+                <div className="flex items-center space-x-2">
+                  <span className="text-base">☁️</span>
+                  <span className="text-xs font-bold text-amber-900 uppercase tracking-wide">
+                    Server (Node.js + SEAL)
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded">
+                  Untrusted Cloud
+                </span>
+              </div>
+
+              {/* Secret Key Access Badge */}
+              <div className="p-2.5 bg-red-50 border border-red-100 rounded text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-red-900">Secret Key Access:</span>
+                  <span className="font-mono text-[11px] font-bold text-red-700">🚫 ZERO ACCESS (DENIED)</span>
+                </div>
+                <p className="text-[11px] text-red-800">
+                  Server operates completely blinded without the client's secret key.
+                </p>
+              </div>
+
+              {/* Plaintext Visibility on Server */}
+              <div className="text-xs space-y-1">
+                <span className="font-semibold text-gray-700">Plaintext Visibility on Server:</span>
+                <div className="font-mono text-xs bg-red-50/50 p-2 rounded border border-red-100 text-red-800 font-medium">
+                  0% Plaintext Visible — Blinded Ciphertexts Only
+                </div>
+              </div>
+
+              {/* What Server Sees (Ciphertext Preview) */}
+              {ciphertextSnippet && (
+                <div className="text-xs space-y-1">
+                  <span className="font-semibold text-gray-700">Raw Data Received by Server:</span>
+                  <div className="font-mono text-[10px] bg-gray-900 text-green-400 p-2 rounded border border-gray-800 break-all max-h-16 overflow-y-auto">
+                    {ciphertextSnippet}
+                  </div>
+                </div>
+              )}
+
+              {/* Server Computation Logs */}
+              <div className="text-xs space-y-1 pt-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-gray-700">Server Execution Logs:</span>
+                  {serverExecutionTime && (
+                    <span className="font-mono text-[10px] text-amber-800 font-medium">
+                      Duration: {serverExecutionTime} ms
+                    </span>
+                  )}
+                </div>
+                <div className="font-mono text-[11px] bg-gray-50 p-2.5 rounded border border-gray-200 space-y-1 max-h-40 overflow-y-auto">
+                  {serverLogs.length > 0 ? (
+                    serverLogs.map((log, idx) => (
+                      <div key={idx} className="text-gray-700">• {log}</div>
+                    ))
+                  ) : (
+                    <div className="text-gray-400 italic">Waiting for client request...</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Decrypted Results Panel with Zero-Knowledge Privacy Audit */}
       <ResultPanel
@@ -298,4 +435,3 @@ export default function ClientServerDemo() {
     </div>
   );
 }
-
