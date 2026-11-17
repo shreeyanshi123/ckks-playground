@@ -24,22 +24,43 @@ export function parseVectorInput(str) {
 }
 
 /**
- * Formats a vector as a clean string [x1, x2, x3].
+ * Formats expected mathematical vector.
  */
-export function formatVector(arr, precision = 6) {
+export function formatExpectedVector(arr) {
   if (!arr || !Array.isArray(arr)) return '[]';
   return '[' + arr.map(n => {
     if (typeof n !== 'number') return String(n);
-    // If it's very close to an integer, show rounded; otherwise show precision
-    if (Math.abs(n - Math.round(n)) < 1e-9) {
-      return String(Math.round(n));
-    }
-    return Number(n.toFixed(precision)).toString();
+    // Keep clean representation (e.g. 3.5, 5, 4.5, 6)
+    return Number(n.toFixed(6)).toString();
   }).join(', ') + ']';
 }
 
 /**
- * Computes exact unencrypted arithmetic for comparison.
+ * Formats decrypted CKKS vector to approximately 10–12 decimal places
+ * without altering or rounding the underlying data.
+ */
+export function formatDecryptedVector(arr, precision = 10) {
+  if (!arr || !Array.isArray(arr)) return '[]';
+  return '[' + arr.map(n => {
+    if (typeof n !== 'number') return String(n);
+    return n.toFixed(precision);
+  }).join(', ') + ']';
+}
+
+/**
+ * Formats absolute error vector [e1, e2, ...].
+ * Shows 10–12 decimal places (e.g. 0.0000000010) without altering raw data.
+ */
+export function formatErrorVector(arr, precision = 10) {
+  if (!arr || !Array.isArray(arr)) return '[]';
+  return '[' + arr.map(n => {
+    if (typeof n !== 'number') return String(n);
+    return n.toFixed(precision);
+  }).join(', ') + ']';
+}
+
+/**
+ * Computes exact unencrypted mathematical arithmetic for ground-truth comparison.
  */
 export function computeExact(v1, v2, operation) {
   const len = Math.min(v1.length, v2.length);
@@ -55,19 +76,21 @@ export function computeExact(v1, v2, operation) {
 }
 
 /**
- * Calculates error statistics between exact arithmetic and CKKS homomorphic result.
+ * Calculates genuine CKKS error statistics on RAW unrounded decoded values:
+ * absolute_error[i] = abs(expected[i] - decrypted[i])
+ * max_error = max(absolute_error)
  */
 export function computeAccuracy(exact, decrypted) {
   const len = Math.min(exact.length, decrypted.length);
-  if (len === 0) return { maxAbsError: 0, meanAbsError: 0, errors: [] };
+  if (len === 0) return { maxAbsError: 0, meanAbsError: 0, absoluteErrors: [] };
 
-  const errors = [];
+  const absoluteErrors = [];
   let maxAbsError = 0;
   let sumAbsError = 0;
 
   for (let i = 0; i < len; i++) {
     const diff = Math.abs(exact[i] - decrypted[i]);
-    errors.push(diff);
+    absoluteErrors.push(diff);
     if (diff > maxAbsError) maxAbsError = diff;
     sumAbsError += diff;
   }
@@ -75,7 +98,20 @@ export function computeAccuracy(exact, decrypted) {
   return {
     maxAbsError,
     meanAbsError: sumAbsError / len,
-    errors
+    absoluteErrors
+  };
+}
+
+/**
+ * Validates if the computation is within a given tolerance:
+ * abs(decrypted[i] - expected[i]) < tolerance
+ */
+export function validateTolerance(maxAbsError, tolerance = 1e-3) {
+  const numTol = Number(tolerance);
+  return {
+    isPassed: maxAbsError <= numTol,
+    maxAbsError,
+    tolerance: numTol
   };
 }
 
@@ -89,4 +125,3 @@ export function formatBytes(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
-

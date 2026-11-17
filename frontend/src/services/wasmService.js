@@ -27,12 +27,12 @@ class CKKSWasmService {
 
     this.isInitialized = false;
 
-    // Parameters matching standard 128-bit CKKS
+    // Parameters matching standard 128-bit CKKS with visible approximation
     this.params = {
       polyModulusDegree: 8192,
-      bitSizes: [60, 40, 40, 60],
-      scale: Math.pow(2, 40),
-      scalePower: 40,
+      bitSizes: [60, 30, 30, 60],
+      scale: Math.pow(2, 30),
+      scalePower: 30,
       slotCount: 4096,
       securityLevel: '128-bit (tc128)'
     };

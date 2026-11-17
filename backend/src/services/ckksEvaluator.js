@@ -6,8 +6,8 @@ let evaluator = null;
 
 export const CKKS_CONFIG = {
   polyModulusDegree: 8192,
-  bitSizes: [60, 40, 40, 60],
-  scalePower: 40,
+  bitSizes: [60, 30, 30, 60],
+  scalePower: 30,
   securityLevel: '128-bit (tc128)'
 };
 
